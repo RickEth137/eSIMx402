@@ -3,7 +3,7 @@ import { esimGoService } from '@/lib/esim-go';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1;
     const perPage = searchParams.get('perPage') ? parseInt(searchParams.get('perPage')!) : 50;
     const countries = searchParams.get('countries') || undefined;
