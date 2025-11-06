@@ -2,17 +2,30 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { DataBundle } from '@/types'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, ShoppingCart, AlertCircle, Check } from 'lucide-react'
+import { useWallet } from '@solana/wallet-adapter-react'
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
+import { useX402Payment } from '@/hooks/useX402Payment'
 
 interface DataPlansCarouselProps {
   bundles: DataBundle[]
 }
 
 export function DataPlansCarousel({ bundles }: DataPlansCarouselProps) {
+  const { connected } = useWallet()
+  const { 
+    isReady, 
+    purchaseState, 
+    purchaseDataPlan, 
+    calculatePaymentAmount,
+    resetPurchaseState 
+  } = useX402Payment()
+  
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
   const [localSearchQuery, setLocalSearchQuery] = useState('')
   const [filteredBundles, setFilteredBundles] = useState<DataBundle[]>(bundles)
+  const [activePurchase, setActivePurchase] = useState<string | null>(null)
   const carouselRef = useRef<HTMLDivElement>(null)
 
   const itemsPerView = {
@@ -98,6 +111,25 @@ export function DataPlansCarousel({ bundles }: DataPlansCarouselProps) {
   const clearLocalSearch = () => {
     setLocalSearchQuery('')
     setIsAutoPlaying(true)
+  }
+
+  const handlePurchase = async (bundle: DataBundle) => {
+    if (!connected || !isReady) return
+    
+    try {
+      setActivePurchase(bundle.name)
+      resetPurchaseState()
+      const result = await purchaseDataPlan(bundle, 1)
+      
+      if (result?.success) {
+        console.log('Purchase successful:', result)
+        // Could show success notification here
+      }
+    } catch (error) {
+      console.error('Purchase failed:', error)
+    } finally {
+      setActivePurchase(null)
+    }
   }
 
   if (bundles.length === 0) {
@@ -189,11 +221,22 @@ export function DataPlansCarousel({ bundles }: DataPlansCarouselProps) {
           onMouseLeave={() => setIsAutoPlaying(true)}
         >
           {filteredBundles.map((bundle) => {
-            const countryFlag = bundle.countries[0]?.iso ? 
-              String.fromCodePoint(
-                127397 + bundle.countries[0].iso.charCodeAt(0), 
-                127397 + bundle.countries[0].iso.charCodeAt(1)
-              ) : '◯'
+            // Get up to 3 country flags to display
+            const flagsToShow = bundle.countries.slice(0, 3)
+            const remainingCountries = bundle.countries.length - flagsToShow.length
+            
+            const getCountryFlag = (iso: string): string => {
+              if (!iso || iso.length !== 2) return '🌍'
+              try {
+                const codePoints = iso
+                  .toUpperCase()
+                  .split('')
+                  .map(char => 127397 + char.charCodeAt(0))
+                return String.fromCodePoint(...codePoints)
+              } catch (error) {
+                return '🌍'
+              }
+            }
             
             return (
               <div
@@ -201,51 +244,142 @@ export function DataPlansCarousel({ bundles }: DataPlansCarouselProps) {
                 className="flex-none px-3"
                 style={{ width: `${100 / itemsToShow}%` }}
               >
-                <div className="glass-card rounded-2xl p-6 hover-glow transition-all duration-300 h-full">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="text-2xl">{countryFlag}</div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white">
-                        {bundle.countries[0]?.name || 'Global'}
-                      </h3>
-                      <p className="text-sm text-white/60">
-                        {bundle.duration} days • {(bundle.dataAmount / (1024 * 1024 * 1024)).toFixed(1)}GB
-                      </p>
+                <div className="glass-card rounded-2xl p-6 hover-glow transition-all duration-300 h-full flex flex-col">
+                  {/* Country Flags Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      {flagsToShow.map((country, index) => (
+                        <div key={country.iso} className="relative group">
+                          <span 
+                            className="text-2xl cursor-help transition-transform hover:scale-110"
+                            title={country.name}
+                          >
+                            {getCountryFlag(country.iso)}
+                          </span>
+                          {/* Tooltip */}
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                            {country.name}
+                          </div>
+                        </div>
+                      ))}
+                      {remainingCountries > 0 && (
+                        <div className="relative group">
+                          <span 
+                            className="text-sm bg-white/20 rounded-full px-2 py-1 text-white/80 cursor-help"
+                            title={`+${remainingCountries} more countries`}
+                          >
+                            +{remainingCountries}
+                          </span>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                            +{remainingCountries} more countries
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="text-xl font-bold text-white">${bundle.price.toFixed(2)}</div>
                     </div>
                   </div>
                   
-                  <div className="text-xs text-white/60 mb-4 line-clamp-2">
-                    {bundle.description}
+                  {/* Primary Country Name */}
+                  <div className="mb-3">
+                    <h3 className="text-lg font-semibold text-white">
+                      {bundle.countries[0]?.name || 'Global Plan'}
+                    </h3>
+                    <p className="text-sm text-white/60">
+                      {bundle.duration} days • {(bundle.dataAmount / (1024 * 1024 * 1024)).toFixed(1)}GB
+                      {bundle.countries.length > 1 && (
+                        <span className="ml-2 text-green-300">
+                          • {bundle.countries.length} countries
+                        </span>
+                      )}
+                    </p>
                   </div>
                   
-                  {/* Speed indicator */}
-                  {bundle.speed && bundle.speed.length > 0 && (
-                    <div className="mb-4">
-                      <span className="inline-block px-2 py-1 rounded-full text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                        {bundle.speed[0]} Network
-                      </span>
+                  {/* Flexible content area */}
+                  <div className="flex-1 flex flex-col">
+                    <div className="text-xs text-white/60 mb-4 line-clamp-2 flex-1">
+                      {bundle.description}
                     </div>
-                  )}
+                    
+                    {/* Speed indicator */}
+                    {bundle.speed && bundle.speed.length > 0 && (
+                      <div className="mb-3">
+                        <span className="inline-block px-2 py-1 rounded-full text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                          {bundle.speed[0]} Network
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Countries Coverage Details */}
+                    {bundle.countries.length > 3 && (
+                      <div className="mb-4">
+                        <div className="text-xs text-white/60 mb-1">Coverage includes:</div>
+                        <div className="text-xs text-white/80">
+                          {bundle.countries.slice(0, 3).map(c => c.name).join(', ')}
+                          {bundle.countries.length > 3 && ` and ${bundle.countries.length - 3} more`}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   
-                  {/* Additional countries indicator */}
-                  {bundle.countries.length > 1 && (
-                    <div className="mb-4">
-                      <span className="inline-block px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-300 border border-green-500/30">
-                        +{bundle.countries.length - 1} more countries
-                      </span>
-                    </div>
-                  )}
-                  
-                  <button className="w-full glass-button rounded-xl py-3 px-4 font-medium text-white hover:bg-white/20 transition-all duration-300">
-                    Connect Wallet to Buy
-                  </button>
+                  {/* Purchase Button */}
+                  <div className="mt-auto">
+                    {connected && isReady ? (
+                      <button 
+                        onClick={() => handlePurchase(bundle)}
+                        disabled={activePurchase === bundle.name}
+                        className="w-full glass-button rounded-xl py-3 px-4 font-medium text-white hover:bg-white/20 transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {activePurchase === bundle.name ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <span>Processing...</span>
+                          </>
+                        ) : purchaseState.success && activePurchase === null ? (
+                          <>
+                            <Check className="w-4 h-4 text-green-400" />
+                            <span>Purchase Complete!</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4" />
+                            <span>Buy ${calculatePaymentAmount(bundle, 1) / 100}</span>
+                          </>
+                        )}
+                      </button>
+                    ) : connected ? (
+                      <button 
+                        disabled
+                        className="w-full glass-button rounded-xl py-3 px-4 font-medium text-white/60 flex items-center justify-center space-x-2"
+                      >
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Initializing Payment...</span>
+                      </button>
+                    ) : (
+                      <WalletMultiButton className="!w-full !bg-white/10 !border-white/20 hover:!bg-white/20 !backdrop-blur-xl !text-white !rounded-xl !font-medium !transition-all !duration-300 !py-3" />
+                    )}
+                  </div>
                 </div>
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* eSIM Usage Disclaimer */}
+      <div className="mt-8 glass-card rounded-xl p-4 border border-yellow-500/20 bg-yellow-500/5">
+        <div className="flex items-start space-x-3">
+          <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+          <div className="text-sm">
+            <div className="text-yellow-300 font-medium mb-1">Important: eSIM Usage Requirements</div>
+            <div className="text-white/70 space-y-1">
+              <p>• eSIM data plans are region/country-specific and must be activated while in the designated coverage area</p>
+              <p>• Plans cannot be used outside their intended geographic regions</p>
+              <p>• Ensure your device supports eSIM technology before purchasing</p>
+              <p>• Data plans have expiration dates - unused data cannot be refunded after activation</p>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { DataBundle } from '@/types'
 import { Header } from '@/components/Header'
 import { DataPlansCarousel } from '@/components/DataPlansCarousel'
+import { AlertCircle } from 'lucide-react'
 
 export default function Home() {
   const [bundles, setBundles] = useState<DataBundle[]>([])
@@ -122,6 +123,36 @@ export default function Home() {
             <button className="glass-button rounded-xl py-3 px-8 font-medium text-white hover:bg-white/20 transition-all duration-300 border border-white/20">
               Connect Wallet
             </button>
+          </div>
+        </div>
+
+        {/* Important Disclaimer Section */}
+        <div className="mb-12 max-w-4xl mx-auto">
+          <div className="glass-card rounded-xl p-6 border border-orange-500/30 bg-orange-500/5">
+            <div className="flex items-start space-x-4">
+              <AlertCircle className="w-6 h-6 text-orange-400 mt-1 flex-shrink-0" />
+              <div>
+                <h3 className="text-lg font-semibold text-orange-300 mb-3">Before You Purchase - Important Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-white/80">
+                  <div>
+                    <h4 className="font-medium text-white mb-2">✈️ Geographic Requirements</h4>
+                    <p className="mb-3">eSIM data plans are region-specific and must be activated while physically present in the coverage area. Plans purchased for a specific country/region cannot be used elsewhere.</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-white mb-2">📱 Device Compatibility</h4>
+                    <p className="mb-3">Ensure your device supports eSIM technology. Most modern smartphones (iPhone XS+, Google Pixel 3+, Samsung Galaxy S20+) are compatible.</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-white mb-2">⏰ Activation & Expiry</h4>
+                    <p>Data plans have specific validity periods and cannot be refunded after activation. Unused data expires after the plan duration.</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-white mb-2">💰 Crypto Payments</h4>
+                    <p>All purchases use Solana/USDC via x402 protocol. Ensure you have sufficient funds and understand crypto transaction fees.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

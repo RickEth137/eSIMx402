@@ -42,21 +42,57 @@ export function DataPlanCard({ bundle }: DataPlanCardProps) {
   const additionalCountries = bundle.countries.length - 1
   const paymentAmount = calculatePaymentAmount(bundle, 1)
 
+  // Enhanced flag display for multiple countries
+  const flagsToShow = bundle.countries.slice(0, 3)
+  const remainingCountries = bundle.countries.length - flagsToShow.length
+
+  const getCountryFlagSafe = (iso: string): string => {
+    if (!iso || iso.length !== 2) return '🌍'
+    try {
+      return getCountryFlag(iso)
+    } catch (error) {
+      return '🌍'
+    }
+  }
+
   return (
-    <div className="glass-card rounded-2xl p-6 hover-glow transition-all duration-300 group">
-      {/* Header */}
+    <div className="glass-card rounded-2xl p-6 hover-glow transition-all duration-300 group h-full flex flex-col">
+      {/* Header with Multiple Flags */}
       <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="text-2xl">{getCountryFlag(primaryCountry.iso)}</div>
+        <div className="flex-1">
+          {/* Country Flags Row */}
+          <div className="flex items-center space-x-2 mb-2">
+            {flagsToShow.map((country, index) => (
+              <div key={country.iso} className="relative group/flag">
+                <span 
+                  className="text-xl cursor-help transition-transform hover:scale-110"
+                  title={country.name}
+                >
+                  {getCountryFlagSafe(country.iso)}
+                </span>
+                {/* Mini tooltip */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover/flag:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20">
+                  {country.name}
+                </div>
+              </div>
+            ))}
+            {remainingCountries > 0 && (
+              <span className="text-xs bg-white/20 rounded-full px-2 py-1 text-white/70">
+                +{remainingCountries}
+              </span>
+            )}
+          </div>
+          
+          {/* Country Name and Details */}
           <div>
             <h3 className="text-lg font-semibold text-white group-hover:gradient-text transition-all">
               {primaryCountry.name}
+              {bundle.countries.length > 1 && (
+                <span className="text-sm text-green-300 ml-2">
+                  & {additionalCountries} more
+                </span>
+              )}
             </h3>
-            {additionalCountries > 0 && (
-              <p className="text-sm text-white/60">
-                +{additionalCountries} more {additionalCountries === 1 ? 'country' : 'countries'}
-              </p>
-            )}
           </div>
         </div>
         <div className="text-right">
@@ -70,62 +106,68 @@ export function DataPlanCard({ bundle }: DataPlanCardProps) {
         </div>
       </div>
 
-      {/* Data Amount */}
-      <div className="glass-card rounded-xl p-4 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Wifi className="w-5 h-5 text-white/60" />
-            <span className="text-white/80">Data</span>
-          </div>
-          <span className="text-xl font-bold text-white">
-            {bundle.unlimited ? 'Unlimited' : formatBytes(bundle.dataAmount)}
-          </span>
-        </div>
-      </div>
-
-      {/* Duration */}
-      <div className="glass-card rounded-xl p-4 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Clock className="w-5 h-5 text-white/60" />
-            <span className="text-white/80">Duration</span>
-          </div>
-          <span className="text-xl font-bold text-white">
-            {formatDuration(bundle.duration)}
-          </span>
-        </div>
-      </div>
-
-      {/* Speed */}
-      {bundle.speed && bundle.speed.length > 0 && (
+      {/* Flexible content area */}
+      <div className="flex-1 flex flex-col">
+        {/* Data Amount */}
         <div className="glass-card rounded-xl p-4 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Zap className="w-5 h-5 text-white/60" />
-              <span className="text-white/80">Speed</span>
+              <Wifi className="w-5 h-5 text-white/60" />
+              <span className="text-white/80">Data</span>
             </div>
-            <span className="text-sm font-medium text-white">
-              {bundle.speed[0]}
+            <span className="text-xl font-bold text-white">
+              {bundle.unlimited ? 'Unlimited' : formatBytes(bundle.dataAmount)}
             </span>
           </div>
         </div>
-      )}
 
-      {/* Roaming Info */}
-      {bundle.roamingEnabled.length > 0 && (
-        <div className="glass-card rounded-xl p-3 mb-4">
-          <div className="flex items-center space-x-2 mb-2">
-            <MapPin className="w-4 h-4 text-white/60" />
-            <span className="text-sm text-white/80">Roaming Available</span>
-          </div>
-          <div className="text-xs text-white/60">
-            {bundle.roamingEnabled.length} additional {bundle.roamingEnabled.length === 1 ? 'location' : 'locations'}
+        {/* Duration */}
+        <div className="glass-card rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Clock className="w-5 h-5 text-white/60" />
+              <span className="text-white/80">Duration</span>
+            </div>
+            <span className="text-xl font-bold text-white">
+              {formatDuration(bundle.duration)}
+            </span>
           </div>
         </div>
-      )}
 
-      {/* Purchase Button */}
-      <div className="pt-2">
+        {/* Speed */}
+        {bundle.speed && bundle.speed.length > 0 && (
+          <div className="glass-card rounded-xl p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Zap className="w-5 h-5 text-white/60" />
+                <span className="text-white/80">Speed</span>
+              </div>
+              <span className="text-sm font-medium text-white">
+                {bundle.speed[0]}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Roaming Info */}
+        {bundle.roamingEnabled.length > 0 && (
+          <div className="glass-card rounded-xl p-3 mb-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <MapPin className="w-4 h-4 text-white/60" />
+              <span className="text-sm text-white/80">Roaming Available</span>
+            </div>
+            <div className="text-xs text-white/60">
+              {bundle.roamingEnabled.length} additional {bundle.roamingEnabled.length === 1 ? 'location' : 'locations'}
+            </div>
+          </div>
+        )}
+
+        {/* Spacer to push button to bottom */}
+        <div className="flex-1"></div>
+      </div>
+
+      {/* Purchase Button - Always at bottom */}
+      <div className="pt-4">
         {connected && isReady ? (
           <button
             onClick={handlePurchase}
